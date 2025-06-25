@@ -22,48 +22,51 @@ const JWT_SECRET = process.env.JWT_SECRET || "eduplanner_secret";
 const router = express.Router();
 
 // === SIGNUP ===
-import bcrypt from 'bcrypt';
+import bcrypt from "bcrypt";
 
-router.post('/signup', async (req, res) => {
+router.post("/signup", async (req, res) => {
   const { email, password } = req.body;
 
   try {
     const existingUser = await User.findOne({ email });
     if (existingUser) {
-      return res.status(400).json({ error: 'Email already exists' });
+      return res.status(400).json({ error: "Email already exists" });
     }
 
     const hashedPassword = await bcrypt.hash(password, 10); // 10 = salt rounds
     const user = await User.create({ email, password: hashedPassword });
 
-    const token = jwt.sign({ userId: user._id }, JWT_SECRET, { expiresIn: '7d' });
+    const token = jwt.sign({ userId: user._id }, JWT_SECRET, {
+      expiresIn: "7d",
+    });
     res.json({ token });
   } catch (err) {
-    console.error('Signup error:', err.message);
-    res.status(500).json({ error: 'Signup failed' });
+    console.error("Signup error:", err.message);
+    res.status(500).json({ error: "Signup failed" });
   }
 });
 
-
 // === LOGIN ===
-router.post('/login', async (req, res) => {
+router.post("/login", async (req, res) => {
   const { email, password } = req.body;
+  console.log("Login attempt:", { email });
 
   try {
     const user = await User.findOne({ email });
-    if (!user) return res.status(404).json({ error: 'User not found' });
+    if (!user) return res.status(404).json({ error: "User not found" });
 
     const isMatch = await bcrypt.compare(password, user.password);
-    if (!isMatch) return res.status(401).json({ error: 'Invalid credentials' });
+    if (!isMatch) return res.status(401).json({ error: "Invalid credentials" });
 
-    const token = jwt.sign({ userId: user._id }, JWT_SECRET, { expiresIn: '7d' });
+    const token = jwt.sign({ userId: user._id }, JWT_SECRET, {
+      expiresIn: "7d",
+    });
     res.json({ token });
   } catch (err) {
-    console.error('Login error:', err.message);
-    res.status(500).json({ error: 'Login failed' });
+    console.error("Login error:", err.message);
+    res.status(500).json({ error: "Login failed" });
   }
 });
-
 
 // === PLAN GENERATION ===
 router.post("/generate-plan", async (req, res) => {
@@ -75,7 +78,7 @@ router.post("/generate-plan", async (req, res) => {
 
     const savedPlan = await Plan.create({
       userId: userId,
-      plan: studyPlan
+      plan: studyPlan,
     });
 
     res.json({ plan: studyPlan, planId: savedPlan._id });
@@ -84,8 +87,6 @@ router.post("/generate-plan", async (req, res) => {
     res.status(400).json({ error: error.message });
   }
 });
-
-
 
 // === PLAN UPDATE ===
 router.post("/update-plan", async (req, res) => {
@@ -157,8 +158,6 @@ router.get("/motivation-history/:userId", async (req, res) => {
   }
 });
 
-
-
 // === STUDY PLAN HISTORY ===
 router.get("/study-plan-history/:userId", async (req, res) => {
   try {
@@ -192,7 +191,7 @@ router.get("/study-plan-latest/:userId", async (req, res) => {
   }
 });
 
-router.patch('/update-plan-progress/:planId', async (req, res) => {
+router.patch("/update-plan-progress/:planId", async (req, res) => {
   try {
     const { planId } = req.params;
     const { progress } = req.body;
@@ -205,8 +204,8 @@ router.patch('/update-plan-progress/:planId', async (req, res) => {
 
     res.json(updated);
   } catch (err) {
-    console.error('Error updating progress:', err.message);
-    res.status(500).json({ error: 'Failed to update progress' });
+    console.error("Error updating progress:", err.message);
+    res.status(500).json({ error: "Failed to update progress" });
   }
 });
 
