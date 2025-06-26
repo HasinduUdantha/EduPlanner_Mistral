@@ -1,8 +1,8 @@
-import { useEffect, useState } from "react";
-import { View, StyleSheet, ScrollView } from "react-native";
-import { Card, Title, Paragraph, Checkbox, Text } from "react-native-paper";
-import * as SecureStore from "expo-secure-store";
-import { getLatestStudyPlan, updateStudyPlanProgress } from "@/utils/api";
+import { useEffect, useState } from 'react';
+import { View, StyleSheet, ScrollView } from 'react-native';
+import { Card, Title, Paragraph, Checkbox, Text } from 'react-native-paper';
+import * as SecureStore from 'expo-secure-store';
+import { getLatestStudyPlan, updateStudyPlanProgress } from '../../utils/api';
 
 interface PlanData {
   _id: string;
@@ -25,7 +25,7 @@ interface Progress {
 }
 
 export default function WeeklyPlanScreen() {
-  const [planData, setPlanData] = useState<any | null>(null);
+  const [planData, setPlanData] = useState<PlanData | null>(null);
   const [progress, setProgress] = useState<Progress>({});
   const [loading, setLoading] = useState(true);
 
@@ -36,7 +36,7 @@ export default function WeeklyPlanScreen() {
   const loadPlan = async () => {
     console.log("Loading study plan from MongoDB...");
     try {
-      // const userId = await SecureStore.getItemAsync("userId");
+      // const userId = await SecureStore.getItemAsync('userId');
       // if (!userId) return;
 
       // const latestPlan = await getLatestStudyPlan(userId);
@@ -205,7 +205,7 @@ export default function WeeklyPlanScreen() {
       //   setProgress(latestPlan.progress);
       // }
     } catch (error) {
-      console.error("Error loading plan from MongoDB:", error);
+      console.error('Error loading plan from MongoDB:', error);
     } finally {
       setLoading(false);
     }
@@ -216,7 +216,7 @@ export default function WeeklyPlanScreen() {
       ...progress,
       [dayKey]: {
         ...(progress[dayKey] || {}),
-        [lessonIndex]: !(progress[dayKey] || {})[lessonIndex],
+        [lessonIndex]: !((progress[dayKey] || {})[lessonIndex]),
       },
     };
     setProgress(updatedProgress);
@@ -226,7 +226,7 @@ export default function WeeklyPlanScreen() {
         await updateStudyPlanProgress(planData._id, updatedProgress);
       }
     } catch (error) {
-      console.error("Error updating progress in MongoDB:", error);
+      console.error('Error updating progress in MongoDB:', error);
     }
   };
 
@@ -251,6 +251,13 @@ export default function WeeklyPlanScreen() {
       <Card style={styles.weekCard}>
         <Card.Content>
           <Title>Daily Study Plan</Title>
+          <Paragraph>Subject: {planData.plan.subject || planData.plan.language}</Paragraph>
+          <Paragraph>Level: {planData.plan.level}</Paragraph>
+          <Paragraph>Duration: {planData.plan.duration}</Paragraph>
+          <Paragraph>
+              Daily Time: {planData.plan.daily_time?.split('/')[0].replace(/\*\*/g, '').trim()}
+          </Paragraph>
+
         </Card.Content>
       </Card>
 
@@ -260,9 +267,7 @@ export default function WeeklyPlanScreen() {
             <Title>{`Day ${index + 1}`}</Title>
             <View style={styles.lessonItem}>
               <Checkbox
-                status={
-                  progress[`Day ${index + 1}`]?.[0] ? "checked" : "unchecked"
-                }
+                status={(progress[`Day ${index + 1}`]?.[0] ? 'checked' : 'unchecked')}
                 onPress={() => toggleTask(`Day ${index + 1}`, 0)}
               />
               <Text>{topic}</Text>
@@ -278,7 +283,7 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     padding: 16,
-    backgroundColor: "#f5f5f5",
+    backgroundColor: '#f5f5f5',
   },
   weekCard: {
     marginBottom: 16,
@@ -287,8 +292,8 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   lessonItem: {
-    flexDirection: "row",
-    alignItems: "center",
+    flexDirection: 'row',
+    alignItems: 'center',
     marginTop: 8,
   },
 });
