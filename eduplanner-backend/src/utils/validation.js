@@ -14,8 +14,3 @@ export const updatePlanSchema = z.object({
   feedback: z.string().min(1, "Feedback is required"),
 });
 
-export const motivationRequestSchema = z.object({
-    subject: z.string().min(1),
-    emotion: z.string().optional(),
-    progress: z.string().optional()
-  });
