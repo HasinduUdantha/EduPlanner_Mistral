@@ -1,52 +1,71 @@
 import { Tabs } from 'expo-router';
-import {
-  Calendar,
-  Chrome as Home,
-  Settings,
-  Smile,
-  BookOpen,
-} from 'lucide-react-native';
+import { MaterialIcons } from '@expo/vector-icons';
 
 export default function TabLayout() {
   return (
     <Tabs
       screenOptions={{
-        headerShown: true,
         tabBarActiveTintColor: '#6366f1',
-      }}>
+        tabBarInactiveTintColor: '#9ca3af',
+        tabBarStyle: {
+          backgroundColor: 'white',
+          borderTopWidth: 1,
+          borderTopColor: '#e5e7eb',
+        },
+      }}
+    >
       <Tabs.Screen
         name="index"
         options={{
           title: 'Home',
-          tabBarIcon: ({ size, color }) => <Home size={size} color={color} />,
+          tabBarIcon: ({ color, size }) => (
+            <MaterialIcons name="home" size={size} color={color} />
+          ),
         }}
       />
       <Tabs.Screen
         name="weekly"
         options={{
-          title: 'Study plan',
-          tabBarIcon: ({ size, color }) => <Calendar size={size} color={color} />,
+          title: 'Study Plan',
+          tabBarIcon: ({ color, size }) => (
+            <MaterialIcons name="calendar-today" size={size} color={color} />
+          ),
         }}
       />
       <Tabs.Screen
-        name="motivation"
+        name="progress"
         options={{
-          title: 'Motivation',
-          tabBarIcon: ({ size, color }) => <Smile size={size} color={color} />,
+          title: 'Progress',
+          tabBarIcon: ({ color, size }) => (
+            <MaterialIcons name="trending-up" size={size} color={color} />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="notes"
+        options={{
+          title: 'Notes',
+          tabBarIcon: ({ color, size }) => (
+            <MaterialIcons name="note" size={size} color={color} />
+          ),
         }}
       />
       <Tabs.Screen
         name="history"
         options={{
           title: 'History',
-          tabBarIcon: ({ size, color }) => <BookOpen size={size} color={color} />,
+          tabBarIcon: ({ color, size }) => (
+            <MaterialIcons name="history" size={size} color={color} />
+          ),
         }}
       />
       <Tabs.Screen
         name="settings"
         options={{
           title: 'Settings',
-          tabBarIcon: ({ size, color }) => <Settings size={size} color={color} />,
+          tabBarIcon: ({ color, size }) => (
+            <MaterialIcons name="settings" size={size} color={color} />
+          ),
         }}
       />
     </Tabs>

@@ -10,6 +10,8 @@ export const generatePlan = async (data) => {
   const weeksMatch = duration.match(/(\d+)\s*week/);
   const totalDays = weeksMatch ? parseInt(weeksMatch[1]) * 7 : 7;
 
+  const timeRequired = dailyTime.includes("1 hour") ? 60 : 120;
+
   const prompt = `[INST]
 You are EduPlanner, an AI-powered personalized study planning assistant. You generate adaptive, structured study plans in JSON format that align with individual learning preferences and academic goals. Your responses must be formatted exactly as requested.
 
@@ -21,7 +23,7 @@ IMPORTANT REQUIREMENTS:
 - Always include "title" field with format: "{subject} {level} Study Plan"
 - "level" must be: Beginner, Intermediate, or Advanced
 - "daily_time" format: "1 hour/day" or "2 hours/day"
-- "time_required" must be 60 for 1hr/day plans, 120 for 2hr/day plans
+- "time_required" must be ${timeRequired}
 - Days with topics should have empty "activities" array
 - Days with activities should have empty "topics" array (for practice/review days)
 - Each topic must have "topic_name" and "sub_topics" array
@@ -30,7 +32,7 @@ IMPORTANT REQUIREMENTS:
 - Progressive difficulty within each level
 - Realistic daily time allocation
 
-Generate a complete plan with exactly **${totalDays} daily topics**.
+Generate a complete plan with exactly ${totalDays} daily topics.
 
 Return the result **exactly in this format**, wrapped in \`\`\`json\`\`\` markers:
 
@@ -53,13 +55,12 @@ Return the result **exactly in this format**, wrapped in \`\`\`json\`\`\` marker
           }
         ],
         "activities": [],
-        "time_required": ${dailyTime.includes("1 hour") ? 60 : 120}
+        "time_required": ${timeRequired}
       }
     ]
   }
 }
 \`\`\`
-
 [/INST]`;
 
   const response = await axios.post(OLLAMA_URL, {
@@ -73,30 +74,38 @@ Return the result **exactly in this format**, wrapped in \`\`\`json\`\`\` marker
 
   if (!rawOutput) throw new Error("Ollama returned an empty response");
 
-  const studyPlanMatch = rawOutput.match(/``````/);
+  // 🛠️ Extract JSON inside ```json ... ```
+  const studyPlanMatch = rawOutput.match(/```json\s*([\s\S]*?)\s*```/);
+
   let planData;
 
-  if (studyPlanMatch) {
-    const studyPlan = JSON.parse(studyPlanMatch[1]);
-    planData = studyPlan.study_plan || studyPlan;
-  } else {
-    console.log("No JSON match; attempting raw parse");
+  if (studyPlanMatch && studyPlanMatch[1]) {
     try {
-      const studyPlan = JSON.parse(rawOutput);
-      planData = studyPlan.study_plan || studyPlan;
+      const parsed = JSON.parse(studyPlanMatch[1]);
+      planData = parsed.study_plan || parsed;
+    } catch (e) {
+      console.error("Error parsing matched JSON block:", e.message);
+      throw new Error("Matched block is not valid JSON");
+    }
+  } else {
+    // Fallback: Try to parse the whole response
+    try {
+      const parsed = JSON.parse(rawOutput);
+      planData = parsed.study_plan || parsed;
     } catch (e) {
       throw new Error("Ollama response is not valid JSON: " + rawOutput);
     }
   }
 
+  if (!planData) throw new Error("No study plan data extracted from response");
+
   if (!planData.subject) {
     planData.subject = subject;
   }
 
-  if (!planData) throw new Error("No study plan data extracted from response");
-
   return planData;
 };
+
 
 export const updatePlan = async (data) => {
   const { planId, feedback } = data;

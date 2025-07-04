@@ -1,0 +1,58 @@
+export const lightTheme = {
+  colors: {
+    primary: '#2563EB',
+    secondary: '#7C3AED', 
+    accent: '#06B6D4',
+    success: '#10B981',
+    warning: '#F59E0B',
+    error: '#EF4444',
+    background: '#FAFBFC',
+    surface: '#FFFFFF',
+    textPrimary: '#1F2937',
+    textSecondary: '#6B7280',
+    border: '#E5E7EB',
+    overlay: 'rgba(0, 0, 0, 0.5)',
+  },
+  spacing: {
+    xs: 4,
+    sm: 8,
+    md: 16,
+    lg: 24,
+    xl: 32,
+    xxl: 48,
+  },
+  borderRadius: {
+    sm: 8,
+    md: 12,
+    lg: 16,
+    xl: 24,
+  },
+  typography: {
+    h1: { fontSize: 28, fontWeight: '700', fontFamily: 'Inter' },
+    h2: { fontSize: 22, fontWeight: '600', fontFamily: 'Inter' },
+    h3: { fontSize: 18, fontWeight: '500', fontFamily: 'Inter' },
+    body: { fontSize: 16, fontWeight: '400', fontFamily: 'DM Sans' },
+    bodySmall: { fontSize: 14, fontWeight: '400', fontFamily: 'DM Sans' },
+    caption: { fontSize: 12, fontWeight: '400', fontFamily: 'DM Sans' },
+  },
+};
+
+export const darkTheme = {
+  colors: {
+    primary: '#3B82F6',
+    secondary: '#8B5CF6',
+    accent: '#22D3EE',
+    success: '#34D399',
+    warning: '#FBBF24',
+    error: '#F87171',
+    background: '#0F172A',
+    surface: '#1E293B',
+    textPrimary: '#F8FAFC',
+    textSecondary: '#CBD5E1',
+    border: '#334155',
+    overlay: 'rgba(0, 0, 0, 0.7)',
+  },
+  spacing: lightTheme.spacing,
+  borderRadius: lightTheme.borderRadius,
+  typography: lightTheme.typography,
+};
