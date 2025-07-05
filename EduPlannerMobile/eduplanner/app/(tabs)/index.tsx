@@ -396,7 +396,7 @@ const handleCardPress = (plan: StudyPlanCard) => {
               <Title style={styles.sectionTitle}>Your Study Plans</Title>
               <Button
                 mode="outlined"
-                onPress={() => router.push('/history')}
+                onPress={() => router.push('/study-plan')}
                 compact
                 style={styles.viewAllButton}
               >
