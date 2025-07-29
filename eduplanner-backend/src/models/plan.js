@@ -10,6 +10,8 @@ const planSchema = new mongoose.Schema({
       timestamp: { type: Date, default: Date.now },
     },
   ],
+  progress: { type: mongoose.Schema.Types.Mixed, default: {} },
+  overallProgressPercentage: { type: Number, default: 0 },
   createdAt: { type: Date, default: Date.now },
   updatedAt: { type: Date, default: Date.now },
 });

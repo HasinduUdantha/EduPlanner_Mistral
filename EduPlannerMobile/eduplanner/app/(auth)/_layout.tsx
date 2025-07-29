@@ -1,33 +1,24 @@
-import { Stack } from 'expo-router';
+import { Stack } from "expo-router";
 
 export default function AuthLayout() {
   return (
     <Stack
       screenOptions={{
-        headerShown: true,
-        headerTitleAlign: 'center',
+        headerShown: false,
+        headerTitleAlign: "center",
         headerStyle: {
-          backgroundColor: '#6366f1', // Consistent with app theme
+          backgroundColor: "#6366f1",
         },
-        headerTintColor: '#ffffff',
+        headerTintColor: "#ffffff",
         headerTitleStyle: {
-          fontWeight: 'bold',
+          fontWeight: "bold",
           fontSize: 20,
         },
+        animation: "fade_from_bottom",
       }}
     >
-      <Stack.Screen
-        name="login"
-        options={{
-          title: 'Welcome to EduPlanner',
-        }}
-      />
-      <Stack.Screen
-        name="signup"
-        options={{
-          title: 'Create Your Account',
-        }}
-      />
+      <Stack.Screen name="login" />
+      <Stack.Screen name="signup" />
     </Stack>
   );
 }

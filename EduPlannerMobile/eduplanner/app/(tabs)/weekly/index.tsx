@@ -11,17 +11,12 @@ import {
 import {
   Button,
   Text,
-  TextInput,
   Card,
   Title,
-  Paragraph,
   Chip,
-  Surface,
-  ActivityIndicator,
   Snackbar,
   ProgressBar,
   IconButton,
-  Avatar,
 } from "react-native-paper";
 import { useRouter } from "expo-router";
 import * as SecureStore from "expo-secure-store";
@@ -29,13 +24,40 @@ import {
   generateStudyPlan,
   getUserPlans,
   getDailyMotivation,
-} from "../../utils/api";
+} from "../../../utils/api";
 import { MaterialIcons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
-import { lightTheme } from "../../utils/theme";
+import { lightTheme } from "../../../utils/theme";
+import { calculateCompletionPercentage } from "@/utils/progress";
 import { useFocusEffect } from "@react-navigation/native";
 
-const { width } = Dimensions.get("window");
+const theme = {
+  colors: {
+    primary: "#2563EB",
+    secondary: "#7C3AED",
+    accent: "#06B6D4",
+    success: "#10B981",
+    warning: "#F59E0B",
+    error: "#EF4444",
+    background: "#FAFBFC",
+    surface: "#FFFFFF",
+    textPrimary: "#1F2937",
+    textSecondary: "#6B7280",
+    border: "#E5E7EB",
+  },
+  spacing: {
+    xs: 4,
+    sm: 8,
+    md: 16,
+    lg: 24,
+    xl: 32,
+  },
+  borderRadius: {
+    sm: 8,
+    md: 12,
+    lg: 16,
+  },
+};
 
 interface StudyPlanCard {
   _id: string;
@@ -57,13 +79,6 @@ interface StudyPlanCard {
 export default function HomeScreen() {
   const router = useRouter();
 
-  // Form state
-  const [subject, setSubject] = useState("");
-  const [level, setLevel] = useState("beginner");
-  const [duration, setDuration] = useState("1 week");
-  const [dailyTime, setDailyTime] = useState("1 hour");
-  const [goals, setGoals] = useState("");
-
   // UI state
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
@@ -72,8 +87,6 @@ export default function HomeScreen() {
 
   // Data state
   const [studyPlans, setStudyPlans] = useState<StudyPlanCard[]>([]);
-  const [motivation, setMotivation] = useState("");
-  const [userName, setUserName] = useState("");
   const [userStats, setUserStats] = useState({
     totalPlans: 0,
     completedPlans: 0,
@@ -82,37 +95,24 @@ export default function HomeScreen() {
   });
 
   useEffect(() => {
-    loadHomeData();
+    loadStudyPlansData();
   }, []);
-
   useFocusEffect(
     useCallback(() => {
-      loadHomeData();
+      loadStudyPlansData();
     }, [])
   );
 
-  const loadHomeData = async () => {
+  const loadStudyPlansData = async () => {
     try {
       const userId = await SecureStore.getItemAsync("userId");
-      const storedUserName = await SecureStore.getItemAsync("userName");
-
-      if (storedUserName) {
-        setUserName(storedUserName);
-      }
-
-      const [motivationData, plansData] = await Promise.all([
-        getDailyMotivation().catch(() => ({
-          motivation: "Keep learning and growing every day!",
-        })),
-        getUserPlans(userId || "guest").catch(() => ({ plans: [] })),
-      ]);
-
-      setMotivation(motivationData.motivation);
+      const plansData = await getUserPlans(userId || "guest").catch(() => ({
+        plans: [],
+      }));
 
       const processedPlans = (plansData.plans || []).map((plan: any) => ({
         ...plan,
         completionPercentage: Math.round(plan.overallProgressPercentage) || 0,
-        // completionPercentage: calculateCompletionPercentage(plan)
       }));
 
       setStudyPlans(processedPlans);
@@ -131,64 +131,22 @@ export default function HomeScreen() {
     }
   };
 
-  const calculateCompletionPercentage = (plan: any) => {
-    if (!plan.progress || !plan.plan.days) return 0;
+  // const calculateCompletionPercentage = (plan: any) => {
+  //     if (!plan.progress || !plan.plan.days) return 0;
 
-    const totalTasks = plan.plan.days.reduce((acc: number, day: any) => {
-      return acc + (day.topics?.length || 0) + (day.activities?.length || 0);
-    }, 0);
+  //     const totalTasks = plan.plan.days.reduce((acc: number, day: any) => {
+  //         return acc + (day.topics?.length || 0) + (day.activities?.length || 0);
+  //     }, 0);
 
-    if (totalTasks === 0) return 0;
+  //     if (totalTasks === 0) return 0;
 
-    const completedTasks = Object.values(plan.progress).reduce(
-      (acc: number, dayProgress: any) => {
-        return acc + Object.values(dayProgress).filter(Boolean).length;
-      },
-      0
-    );
+  //     const completedTasks = Object.values(plan.progress).reduce((acc: number, dayProgress: any) => {
+  //         return acc + Object.values(dayProgress).filter(Boolean).length;
+  //     }, 0);
 
-    return Math.round((completedTasks / totalTasks) * 100);
-  };
+  //     return Math.round((completedTasks / totalTasks) * 100);
+  // };
 
-  const handleGeneratePlan = async () => {
-    if (loading || !subject.trim()) return;
-
-    try {
-      setLoading(true);
-
-      const userId = await SecureStore.getItemAsync("userId");
-      const payload = {
-        subject: subject.trim(),
-        level,
-        duration,
-        dailyTime,
-        goals: goals.trim(),
-        userId: userId || "guest",
-      };
-
-      const response = await generateStudyPlan(payload);
-
-      setSnackbarMessage("Study plan generated successfully!");
-      setSnackbarVisible(true);
-
-      setSubject("");
-      setGoals("");
-
-      await loadHomeData();
-
-      router.push({
-        pathname: "/weekly",
-        params: { plan: JSON.stringify(response) },
-      });
-    } catch (err: any) {
-      setSnackbarMessage(err.message || "Failed to generate study plan");
-      setSnackbarVisible(true);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // In your home screen (index.tsx)
   const handleCardPress = (plan: StudyPlanCard) => {
     console.log("🔍 Navigating to specific plan:", plan._id);
 
@@ -198,11 +156,15 @@ export default function HomeScreen() {
       userId: plan.userId || "guest",
       plan: plan.plan,
       progress: plan.progress || {},
+      overallProgressPercentage: plan.completionPercentage || 0,
       createdAt: plan.createdAt,
       // updatedAt: plan.updatedAt || plan.createdAt
     };
 
-    // console.log('📦 Plan data being passed:', JSON.stringify(planToPass, null, 2));
+    console.log(
+      "📦 Plan data being passed:",
+      JSON.stringify(planToPass, null, 2)
+    );
 
     router.push({
       pathname: "/(tabs)/weekly/details",
@@ -221,227 +183,59 @@ export default function HomeScreen() {
     return lightTheme.colors.success;
   };
 
-  const levelOptions = ["beginner", "intermediate", "advanced"];
-  const durationOptions = ["1 week", "2 weeks", "3 weeks", "4 weeks"];
-  const timeOptions = ["30 minutes", "1 hour", "2 hours", "3 hours"];
-
   return (
     <View style={styles.container}>
       <StatusBar
         barStyle="light-content"
         backgroundColor={lightTheme.colors.primary}
       />
-
+      <LinearGradient
+        colors={[theme.colors.primary, theme.colors.secondary]}
+        style={styles.header}
+      >
+        <View style={styles.headerContent}>
+          {/* Top Navigation */}
+          <View style={styles.headerTop}>
+            <IconButton
+              icon="arrow-left"
+              size={24}
+              iconColor="white"
+              onPress={() => router.back()}
+            />
+            <View style={styles.headerCenter}>
+              <Text style={styles.headerSubject}>Study Plans</Text>
+            </View>
+            <IconButton
+              icon="plus"
+              size={24}
+              iconColor="white"
+              onPress={() => router.push("/")} // If the home screen is the default tab
+            />
+          </View>
+        </View>
+      </LinearGradient>
       <ScrollView
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={loadHomeData} />
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={loadStudyPlansData}
+          />
         }
         showsVerticalScrollIndicator={false}
+        style={{ paddingTop: 10 }}
       >
-        {/* Header Section */}
-        <LinearGradient
-          colors={[lightTheme.colors.primary, lightTheme.colors.secondary]}
-          style={styles.headerGradient}
-        >
-          <View style={styles.headerContent}>
-            <View style={styles.userSection}>
-              <Avatar.Text
-                size={56}
-                label={userName ? userName.charAt(0).toUpperCase() : "U"}
-                style={styles.avatar}
-              />
-              <View style={styles.userInfo}>
-                <Text style={styles.welcomeText}>
-                  Welcome back{userName ? `, ${userName}` : ""}! 👋
-                </Text>
-                <Text style={styles.subtitleText}>
-                  Ready to continue your learning journey?
-                </Text>
-              </View>
-            </View>
-
-            {/* Quick Stats */}
-            <View style={styles.statsRow}>
-              <View style={styles.statItem}>
-                <Text style={styles.statNumber}>{userStats.currentStreak}</Text>
-                <Text style={styles.statLabel}>Day Streak</Text>
-              </View>
-              <View style={styles.statItem}>
-                <Text style={styles.statNumber}>{userStats.totalPlans}</Text>
-                <Text style={styles.statLabel}>Total Plans</Text>
-              </View>
-              <View style={styles.statItem}>
-                <Text style={styles.statNumber}>
-                  {userStats.totalStudyTime}h
-                </Text>
-                <Text style={styles.statLabel}>Study Time</Text>
-              </View>
-            </View>
+        {studyPlans.length === 0 && (
+          <View>
+            <Text style={styles.noDataFoundHeader}>No Study Plans Found</Text>
+            <Text style={styles.noDataFoundDescription}>
+              Start creating your study plans!
+            </Text>
           </View>
-        </LinearGradient>
-
-        {/* Plan Generation Form */}
-        <Card style={styles.formCard}>
-          <Card.Content style={styles.formContent}>
-            <View style={styles.formHeader}>
-              <MaterialIcons
-                name="add-circle"
-                size={32}
-                color={lightTheme.colors.primary}
-              />
-              <View style={styles.formHeaderText}>
-                <Title style={styles.formTitle}>Create Study Plan</Title>
-                <Paragraph style={styles.formSubtitle}>
-                  Generate a personalized learning path
-                </Paragraph>
-              </View>
-            </View>
-
-            <TextInput
-              label="What do you want to learn?"
-              value={subject}
-              onChangeText={setSubject}
-              style={styles.input}
-              mode="outlined"
-              placeholder="e.g., JavaScript, Python, React"
-              left={<TextInput.Icon icon="book" />}
-              theme={{
-                colors: {
-                  primary: lightTheme.colors.primary,
-                  outline: lightTheme.colors.border,
-                },
-              }}
-            />
-
-            <Text style={styles.sectionLabel}>Skill Level</Text>
-            <View style={styles.chipContainer}>
-              {levelOptions.map((option) => (
-                <Chip
-                  key={option}
-                  selected={level === option}
-                  onPress={() => setLevel(option)}
-                  style={[styles.chip, level === option && styles.selectedChip]}
-                  textStyle={
-                    level === option ? styles.selectedChipText : styles.chipText
-                  }
-                  icon={level === option ? "check" : undefined}
-                >
-                  {option.charAt(0).toUpperCase() + option.slice(1)}
-                </Chip>
-              ))}
-            </View>
-
-            <Text style={styles.sectionLabel}>Study Duration</Text>
-            <View style={styles.chipContainer}>
-              {durationOptions.map((option) => (
-                <Chip
-                  key={option}
-                  selected={duration === option}
-                  onPress={() => setDuration(option)}
-                  style={[
-                    styles.chip,
-                    duration === option && styles.selectedChip,
-                  ]}
-                  textStyle={
-                    duration === option
-                      ? styles.selectedChipText
-                      : styles.chipText
-                  }
-                  icon={duration === option ? "check" : undefined}
-                >
-                  {option}
-                </Chip>
-              ))}
-            </View>
-
-            <Text style={styles.sectionLabel}>Daily Time Commitment</Text>
-            <View style={styles.chipContainer}>
-              {timeOptions.map((option) => (
-                <Chip
-                  key={option}
-                  selected={dailyTime === option}
-                  onPress={() => setDailyTime(option)}
-                  style={[
-                    styles.chip,
-                    dailyTime === option && styles.selectedChip,
-                  ]}
-                  textStyle={
-                    dailyTime === option
-                      ? styles.selectedChipText
-                      : styles.chipText
-                  }
-                  icon={dailyTime === option ? "check" : undefined}
-                >
-                  {option}
-                </Chip>
-              ))}
-            </View>
-
-            <TextInput
-              label="Learning Goals (Optional)"
-              value={goals}
-              onChangeText={setGoals}
-              style={styles.input}
-              mode="outlined"
-              multiline
-              numberOfLines={3}
-              placeholder="What specific skills do you want to achieve?"
-              left={<TextInput.Icon icon="target" />}
-              theme={{
-                colors: {
-                  primary: lightTheme.colors.primary,
-                  outline: lightTheme.colors.border,
-                },
-              }}
-            />
-
-            <Button
-              mode="contained"
-              onPress={handleGeneratePlan}
-              loading={loading}
-              disabled={loading || !subject.trim()}
-              style={styles.generateButton}
-              contentStyle={styles.generateButtonContent}
-              icon="plus"
-            >
-              {loading ? "Generating Your Plan..." : "Generate Study Plan"}
-            </Button>
-          </Card.Content>
-        </Card>
-
-        {/* Motivation Card */}
-        {motivation && (
-          <Card style={styles.motivationCard}>
-            <Card.Content>
-              <View style={styles.motivationHeader}>
-                <MaterialIcons
-                  name="lightbulb"
-                  size={24}
-                  color={lightTheme.colors.warning}
-                />
-                <Title style={styles.motivationTitle}>Daily Motivation</Title>
-              </View>
-              <Paragraph style={styles.motivationText}>{motivation}</Paragraph>
-            </Card.Content>
-          </Card>
         )}
-
         {/* Study Plans Grid */}
         {studyPlans.length > 0 && (
           <View style={styles.plansSection}>
-            <View style={styles.plansSectionHeader}>
-              <Title style={styles.sectionTitle}>Recent Study Plans</Title>
-              <Button
-                mode="outlined"
-                onPress={() => router.push("/weekly")}
-                compact
-                style={styles.viewAllButton}
-              >
-                View All
-              </Button>
-            </View>
-
-            {studyPlans.slice(0, 3).map((plan, index) => (
+            {studyPlans.map((plan, index) => (
               <TouchableOpacity
                 key={plan._id}
                 onPress={() => handleCardPress(plan)}
@@ -452,7 +246,14 @@ export default function HomeScreen() {
                     <View style={styles.planHeader}>
                       <View style={styles.planTitleContainer}>
                         <Title style={styles.planTitle} numberOfLines={2}>
-                          {plan.plan.title || `${plan.plan.subject} Study Plan`}
+                          {(
+                            plan.plan.title || `${plan.plan.subject} Study Plan`
+                          ).replace(
+                            /\w\S*/g,
+                            (txt) =>
+                              txt.charAt(0).toUpperCase() +
+                              txt.slice(1).toLowerCase()
+                          )}
                         </Title>
                         <Chip
                           style={[
@@ -466,12 +267,13 @@ export default function HomeScreen() {
                             fontSize: 12,
                           }}
                         >
-                          {plan.plan.level}
+                          {plan.plan.level.charAt(0).toUpperCase() +
+                            plan.plan.level.slice(1).toLowerCase()}
                         </Chip>
                       </View>
                       <IconButton
                         icon="chevron-right"
-                        size={20}
+                        size={24}
                         iconColor={lightTheme.colors.textSecondary}
                       />
                     </View>
@@ -553,13 +355,55 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: lightTheme.colors.background,
   },
+  header: {
+    paddingTop: 80,
+    paddingBottom: theme.spacing.lg,
+    paddingHorizontal: theme.spacing.md,
+  },
+  headerContent: {
+    flex: 1,
+  },
+  headerTop: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: theme.spacing.md,
+  },
+  headerCenter: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    height: 50,
+  },
+  headerSubject: {
+    fontSize: 18,
+    fontWeight: "bold",
+    color: "white",
+    textAlign: "center",
+  },
+  headerLevel: {
+    fontSize: 14,
+    color: "rgba(255, 255, 255, 0.8)",
+    textAlign: "center",
+    marginTop: 2,
+  },
+  noDataFoundHeader: {
+    fontSize: 20,
+    fontWeight: "bold",
+    color: lightTheme.colors.textPrimary,
+    textAlign: "center",
+    marginVertical: theme.spacing.lg,
+  },
+  noDataFoundDescription: {
+    fontSize: 16,
+    color: lightTheme.colors.textSecondary,
+    textAlign: "center",
+    marginBottom: theme.spacing.lg,
+  },
   headerGradient: {
     paddingTop: 60,
     paddingBottom: 24,
     paddingHorizontal: 20,
-  },
-  headerContent: {
-    flex: 1,
   },
   userSection: {
     flexDirection: "row",
@@ -679,30 +523,6 @@ const styles = StyleSheet.create({
   generateButtonContent: {
     paddingVertical: 12,
   },
-  motivationCard: {
-    margin: lightTheme.spacing.md,
-    marginTop: 0,
-    borderRadius: lightTheme.borderRadius.md,
-    backgroundColor: `${lightTheme.colors.warning}10`,
-  },
-  motivationHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginBottom: lightTheme.spacing.sm,
-  },
-  // Only TextStyle properties for text components
-  motivationTitle: {
-    ...(lightTheme.typography.h3 as object),
-    color: lightTheme.colors.warning,
-    marginLeft: lightTheme.spacing.sm,
-  },
-  // Only TextStyle properties for text components
-  motivationText: {
-    ...(lightTheme.typography.body as object),
-    color: lightTheme.colors.textSecondary,
-    fontStyle: "italic",
-    lineHeight: 22,
-  },
   plansSection: {
     margin: lightTheme.spacing.md,
     marginTop: 0,
@@ -733,7 +553,7 @@ const styles = StyleSheet.create({
   planHeader: {
     flexDirection: "row",
     justifyContent: "space-between",
-    alignItems: "flex-start",
+    alignItems: "center",
     marginBottom: lightTheme.spacing.sm,
   },
   planTitleContainer: {

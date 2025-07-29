@@ -31,7 +31,7 @@ import {
   updateStudyPlanProgress,
   updateStudyPlan,
   getStudyPlan,
-} from "../../utils/api";
+} from "../../../utils/api";
 import { MaterialIcons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 
@@ -87,6 +87,7 @@ interface PlanData {
     }>;
   };
   progress?: Progress;
+  overallProgressPercentage?: number;
   createdAt: string;
   updatedAt?: string;
 }
@@ -110,6 +111,7 @@ export default function WeeklyPlanScreen() {
 
   const [planData, setPlanData] = useState<PlanData | null>(null);
   const [progress, setProgress] = useState<Progress>({});
+  const [overallProgress, setOverallProgress] = useState(0);
   const [loading, setLoading] = useState(true);
   const [expandedDays, setExpandedDays] = useState<Set<number>>(new Set([1]));
   const [showFeedbackModal, setShowFeedbackModal] = useState(false);
@@ -131,6 +133,7 @@ export default function WeeklyPlanScreen() {
   }, [params.plan, params.planId]);
 
   const loadPlan = async () => {
+    console.log("🔄 Loading plan with params:#########");
     try {
       setLoading(true);
       setError(null);
@@ -155,10 +158,16 @@ export default function WeeklyPlanScreen() {
           }
 
           setCurrentPlanId(planToLoad._id);
+          console.log(
+            "📦 Normalizing plan data...",
+            planToLoad.overallProgressPercentage
+          );
           const normalizedPlan = normalizePlanData(planToLoad);
           setPlanData(normalizedPlan);
+          setOverallProgress(normalizedPlan.overallProgressPercentage || 0);
 
           if (normalizedPlan?.progress) {
+            console.log("📊 Setting progress data:", normalizedPlan.progress);
             setProgress(normalizedPlan.progress);
           }
 
@@ -202,7 +211,7 @@ export default function WeeklyPlanScreen() {
         setError("No study plan found");
         return;
       }
-
+      console.log("📦 Plan to load:", planToLoad);
       const normalizedPlan = normalizePlanData(planToLoad);
       setPlanData(normalizedPlan);
 
@@ -256,6 +265,7 @@ export default function WeeklyPlanScreen() {
   };
 
   const toggleTask = async (dayKey: string, itemIndex: string) => {
+    console.log(`🔄 Toggling task for ${dayKey} - ${itemIndex}`);
     const updatedProgress = {
       ...progress,
       [dayKey]: {
@@ -265,10 +275,21 @@ export default function WeeklyPlanScreen() {
     };
 
     setProgress(updatedProgress);
+    const overallProgress =
+      plan.days?.length > 0
+        ? plan.days.reduce((acc, day) => acc + getDayProgress(day.day), 0) /
+          plan.days.length
+        : 0;
+    setOverallProgress(Math.round(overallProgress));
 
     try {
       if (planData?._id) {
-        await updateStudyPlanProgress(planData._id, updatedProgress);
+        console.log("📦 Updating progress for plan:", planData._id);
+        await updateStudyPlanProgress(
+          planData._id,
+          updatedProgress,
+          Math.round(overallProgress)
+        );
       }
     } catch (error) {
       console.error("Error updating progress:", error);
@@ -307,18 +328,50 @@ export default function WeeklyPlanScreen() {
     }
   };
 
+  // const getDayProgress = (day: number) => {
+  //     const dayKey = `day_${day}`;
+  //     const dayData = planData?.plan.days.find((d) => d.day === day);
+  //     if (!dayData) return 0;
+
+  //     const totalItems =
+  //         (dayData.topics?.length || 0) + (dayData.activities?.length || 0);
+  //     if (totalItems === 0) return 0;
+
+  //     const completedItems = Object.values(progress[dayKey] || {}).filter(
+  //         Boolean
+  //     ).length;
+  //     return Math.round((completedItems / totalItems) * 100);
+  // };
+
   const getDayProgress = (day: number) => {
     const dayKey = `day_${day}`;
     const dayData = planData?.plan.days.find((d) => d.day === day);
     if (!dayData) return 0;
 
-    const totalItems =
-      (dayData.topics?.length || 0) + (dayData.activities?.length || 0);
-    if (totalItems === 0) return 0;
+    let totalItems = 0;
+    let completedItems = 0;
 
-    const completedItems = Object.values(progress[dayKey] || {}).filter(
-      Boolean
-    ).length;
+    // Count topics and sub-topics
+    dayData.topics?.forEach((topic, topicIndex) => {
+      totalItems++; // main topic
+      if (progress[dayKey]?.[`topic_${topicIndex}`]) completedItems++;
+
+      if (typeof topic === "object" && Array.isArray(topic.sub_topics)) {
+        topic.sub_topics.forEach((_, subIndex) => {
+          totalItems++;
+          const subKey = `subtopic_${topicIndex}_${subIndex}`;
+          if (progress[dayKey]?.[subKey]) completedItems++;
+        });
+      }
+    });
+
+    // Count activities
+    dayData.activities?.forEach((_, activityIndex) => {
+      totalItems++;
+      if (progress[dayKey]?.[`activity_${activityIndex}`]) completedItems++;
+    });
+
+    if (totalItems === 0) return 0;
     return Math.round((completedItems / totalItems) * 100);
   };
 
@@ -424,11 +477,11 @@ export default function WeeklyPlanScreen() {
   }
 
   const { plan } = planData;
-  const overallProgress =
-    plan.days?.length > 0
-      ? plan.days.reduce((acc, day) => acc + getDayProgress(day.day), 0) /
-        plan.days.length
-      : 0;
+  // const overallProgress =
+  //     plan.days?.length > 0
+  //         ? plan.days.reduce((acc, day) => acc + getDayProgress(day.day), 0) /
+  //         plan.days.length
+  //         : 0;
   const completedDays = getCompletedDays();
 
   return (
@@ -453,8 +506,25 @@ export default function WeeklyPlanScreen() {
               onPress={() => router.back()}
             />
             <View style={styles.headerCenter}>
-              <Text style={styles.headerSubject}>{plan.subject}</Text>
-              <Text style={styles.headerLevel}>{plan.level} Level</Text>
+              <Text
+                style={styles.headerSubject}
+                numberOfLines={1}
+                ellipsizeMode="tail"
+              >
+                {(
+                  plan.title ||
+                  `${plan.subject} Test Study Plan Some sample text goes more here`
+                ).replace(
+                  /\w\S*/g,
+                  (txt) =>
+                    txt.charAt(0).toUpperCase() + txt.slice(1).toLowerCase()
+                )}
+              </Text>
+              <Text style={styles.headerLevel}>
+                {plan.level.charAt(0).toUpperCase() +
+                  plan.level.slice(1).toLocaleLowerCase()}{" "}
+                Level
+              </Text>
             </View>
             <IconButton
               icon="comment-text-outline"
@@ -472,80 +542,32 @@ export default function WeeklyPlanScreen() {
           </View>
 
           {/* Plan Details Grid */}
-          <View style={styles.planDetailsGrid}>
-            <View style={styles.detailItem}>
-              <MaterialIcons name="calendar-today" size={20} color="white" />
-              <View style={styles.detailTextContainer}>
-                <Text style={styles.detailValue}>{plan.total_days}</Text>
-                <Text style={styles.detailLabel}>Total Days</Text>
-              </View>
-            </View>
-
-            <View style={styles.detailItem}>
-              <MaterialIcons name="access-time" size={20} color="white" />
-              <View style={styles.detailTextContainer}>
-                <Text style={styles.detailValue}>
-                  {plan.daily_time
-                    ?.split("/")[0]
-                    ?.replace(/\*\*/g, "")
-                    .trim() || "Daily"}
-                </Text>
-                <Text style={styles.detailLabel}>Study Time</Text>
-              </View>
-            </View>
-
-            <View style={styles.detailItem}>
-              <MaterialIcons name="schedule" size={20} color="white" />
-              <View style={styles.detailTextContainer}>
-                <Text style={styles.detailValue}>{plan.duration}</Text>
-                <Text style={styles.detailLabel}>Duration</Text>
-              </View>
-            </View>
-
-            <View style={styles.detailItem}>
-              <MaterialIcons name="check-circle" size={20} color="white" />
-              <View style={styles.detailTextContainer}>
-                <Text style={styles.detailValue}>
-                  {completedDays}/{plan.total_days}
-                </Text>
-                <Text style={styles.detailLabel}>Completed</Text>
-              </View>
-            </View>
-          </View>
-
-          {/* Progress Section */}
-          <View style={styles.progressContainer}>
-            <View style={styles.progressInfo}>
-              <Text style={styles.progressText}>Overall Progress</Text>
-              <Text style={styles.progressPercentage}>
-                {Math.round(overallProgress)}%
-              </Text>
-            </View>
-            <View style={styles.progressBarContainer}>
-              <View
-                style={[
-                  styles.progressBarFill,
-                  { width: `${overallProgress}%` },
-                ]}
-              />
-            </View>
-          </View>
-
-          {/* Plan Meta Information */}
-          <View style={styles.planMeta}>
-            <Text style={styles.planMetaText}>
-              Created on {formatCreatedDate(planData.createdAt)}
-            </Text>
-            {planData.updatedAt &&
-              planData.updatedAt !== planData.createdAt && (
-                <Text style={styles.planMetaText}>
-                  • Last updated {formatCreatedDate(planData.updatedAt)}
-                </Text>
-              )}
-          </View>
         </View>
       </LinearGradient>
-
+      <View style={styles.planDetailsCard}>
+        <View style={styles.planDetails}>
+          <View style={styles.planDetailItem}>
+            <Text style={styles.planDetailLabel}>Total Days:</Text>
+            <Text style={styles.planDetailValue}>{plan.total_days}</Text>
+          </View>
+          <View style={styles.planDetailItem}>
+            <Text style={styles.planDetailLabel}>Daily Time:</Text>
+            <Text style={styles.planDetailValue}>{plan.daily_time} mins</Text>
+          </View>
+          <View style={styles.planDetailItem}>
+            <Text style={styles.planDetailLabel}>Created On:</Text>
+            <Text style={styles.planDetailValue}>
+              {formatCreatedDate(planData.createdAt)}
+            </Text>
+          </View>
+          <View style={styles.planDetailItem}>
+            <Text style={styles.planDetailLabel}>Overall Progress:</Text>
+            <Text style={styles.progressPercentage}>
+              {Math.round(overallProgress)}%
+            </Text>
+          </View>
+        </View>
+      </View>
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
         {/* Daily Plan */}
         {plan.days?.map((day, dayIndex) => {
@@ -828,7 +850,7 @@ const styles = StyleSheet.create({
     backgroundColor: theme.colors.primary,
   },
   header: {
-    paddingTop: 60,
+    paddingTop: 80,
     paddingBottom: theme.spacing.lg,
     paddingHorizontal: theme.spacing.md,
   },
@@ -840,20 +862,19 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "space-between",
     marginBottom: theme.spacing.md,
-   
   },
   headerCenter: {
     flex: 1,
     alignItems: "center",
-    backgroundColor:"red",
     justifyContent: "center",
     height: 50,
   },
   headerSubject: {
-    fontSize: 24,
+    fontSize: 18,
     fontWeight: "bold",
     color: "white",
     textAlign: "center",
+    overflow: "hidden",
   },
   headerLevel: {
     fontSize: 14,
@@ -917,11 +938,11 @@ const styles = StyleSheet.create({
     color: "white",
     fontWeight: "500",
   },
-  progressPercentage: {
-    fontSize: 20,
-    color: "white",
-    fontWeight: "bold",
-  },
+  // progressPercentage: {
+  //     fontSize: 20,
+  //     color: "white",
+  //     fontWeight: "bold",
+  // },
   progressBarContainer: {
     height: 8,
     backgroundColor: "rgba(255, 255, 255, 0.2)",
@@ -942,6 +963,52 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: "rgba(255, 255, 255, 0.7)",
     textAlign: "center",
+  },
+  planDetailsCard: {
+    backgroundColor: theme.colors.surface,
+    borderRadius: theme.borderRadius.md,
+    padding: theme.spacing.md,
+    margin: theme.spacing.md,
+    elevation: 2, // Adds a subtle shadow for the card
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+  },
+  planDetails: {
+    flexDirection: "column",
+    gap: theme.spacing.sm,
+  },
+  planDetailItem: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: theme.spacing.sm,
+  },
+  planDetailLabel: {
+    fontSize: 14,
+    color: theme.colors.textSecondary,
+    fontWeight: "500",
+  },
+  planDetailValue: {
+    fontSize: 14,
+    color: theme.colors.textPrimary,
+    fontWeight: "600",
+    overflow: "hidden",
+  },
+  progressBar: {
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: theme.colors.border,
+    flex: 1,
+    marginRight: theme.spacing.sm,
+    width: "50%",
+  },
+  progressPercentage: {
+    fontSize: 14,
+    color: theme.colors.textPrimary,
+    fontWeight: "600",
+    marginLeft: theme.spacing.sm,
   },
   content: {
     flex: 1,
@@ -996,9 +1063,14 @@ const styles = StyleSheet.create({
     color: theme.colors.textSecondary,
   },
   dayProgress: {
+    // flex: 1,
+    // width: '10%',
+    paddingTop: theme.spacing.sm,
     alignItems: "center",
+    // backgroundColor: 'blue',
   },
   dayProgressText: {
+    marginTop: 4,
     fontSize: 14,
     fontWeight: "bold",
   },
@@ -1006,8 +1078,8 @@ const styles = StyleSheet.create({
     height: 4,
     backgroundColor: theme.colors.border,
     borderRadius: 2,
-    marginTop: theme.spacing.md,
     overflow: "hidden",
+    marginBottom: theme.spacing.md,
   },
   dayProgressBarFill: {
     height: "100%",
@@ -1034,10 +1106,9 @@ const styles = StyleSheet.create({
   },
   topicTitle: {
     fontSize: 16,
-    fontWeight: "600",
+    // fontWeight: "600",
     color: theme.colors.textPrimary,
     marginLeft: theme.spacing.sm,
-    flex: 1,
   },
   subTopicItem: {
     flexDirection: "row",

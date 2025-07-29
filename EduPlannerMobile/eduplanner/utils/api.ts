@@ -504,14 +504,14 @@ export const getStudyPlanHistory = async (userId: string) => {
   }
 };
 
-export const updateStudyPlanProgress = async (planId: string, progress: any) => {
-  try {
-    const response = await apiClient.patch(`/plan/${planId}/progress`, { progress });
-    return response.data;
-  } catch (error: any) {
-    const message = error.response?.data?.error || error.message || 'Failed to update progress';
-    throw new Error(message);
-  }
+export const updateStudyPlanProgress = async (planId: string, progress: any, overallProgressPercentage: number) => {
+ try {
+   const response = await apiClient.patch(`/plan/${planId}/progress`, { progress, overallProgressPercentage });
+   return response.data;
+ } catch (error: any) {
+   const message = error.response?.data?.error || error.message || 'Failed to update progress';
+   throw new Error(message);
+ }
 };
 
 export const getDailyMotivation = async () => {
